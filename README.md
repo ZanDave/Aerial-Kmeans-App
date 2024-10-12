@@ -1,19 +1,12 @@
-# 🎈 Blank app template
+# 🚀 Clustering Gambar Udara Terintegrasi
 
-A simple Streamlit app template for you to modify!
+Ini adalah aplikasi Streamlit untuk proyek Ujian Tengah Semester (UTS) mata kuliah Data Mining. Aplikasi ini memungkinkan pengguna untuk melatih atau memuat model machine learning yang dapat melakukan clustering gambar udara. Dengan teknik segmentasi dan clustering seperti Felzenszwalb dan MiniBatchKMeans, aplikasi ini menyediakan visualisasi gambar hasil clustering beserta metrik skor siluet.
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://blank-app-template.streamlit.app/)
+[![Buka di Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://enhanced-aerial-clustering.streamlit.app/)
 
-### How to run it on your own machine
-
-1. Install the requirements
-
-   ```
-   $ pip install -r requirements.txt
-   ```
-
-2. Run the app
-
-   ```
-   $ streamlit run streamlit_app.py
-   ```
+## Fitur
+- **Pelatihan Model**: Latih model clustering baru menggunakan dataset gambar udara Anda sendiri.
+- **Memuat Model Pre-trained**: Muat model yang sudah dilatih sebelumnya untuk proses clustering yang lebih cepat.
+- **Clustering Gambar**: Unggah gambar untuk dilakukan segmentasi menjadi beberapa cluster menggunakan Felzenszwalb dan MiniBatchKMeans.
+- **Visualisasi**: Lihat gambar asli dan gambar hasil clustering dengan label cluster dan skor siluet secara berdampingan.
+- **Metrik**: Tampilkan metrik clustering seperti jumlah cluster dan skor siluet.
