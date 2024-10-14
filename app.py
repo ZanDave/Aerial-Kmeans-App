@@ -1,8 +1,6 @@
 import streamlit as st
 import numpy as np
 import cv2
-from sklearn.cluster import MiniBatchKMeans
-from sklearn.metrics import silhouette_score
 import matplotlib.pyplot as plt
 from PIL import Image
 import io
@@ -12,7 +10,7 @@ import pickle
 import time
 from skimage.segmentation import felzenszwalb
 from skimage.color import rgb2lab, lab2rgb
-from scipy.stats import mode
+import random
 
 class EnhancedImageClusterer:
     def __init__(self):
@@ -60,9 +58,8 @@ class EnhancedImageClusterer:
 
         all_features = np.vstack(features_list)
         
-        # Use MiniBatchKMeans instead of KMeans to reduce memory usage
-        self.kmeans = MiniBatchKMeans(n_clusters=5, random_state=42, batch_size=1000)
-        self.kmeans.fit(all_features)
+        # Implement K-means manually
+        self.kmeans = self.kmeans_clustering(all_features, n_clusters=5, max_iters=100)
 
         with open(self.model_path, 'wb') as f:
             pickle.dump(self.kmeans, f)
@@ -92,9 +89,8 @@ class EnhancedImageClusterer:
         # Convert to LAB color space
         lab_features = rgb2lab(features.reshape(1, -1, 3)).reshape(-1, 3)
 
-        # Perform MiniBatchKMeans clustering
-        kmeans = MiniBatchKMeans(n_clusters=n_clusters, random_state=42, batch_size=1000)
-        labels = kmeans.fit_predict(lab_features)
+        # Perform K-means clustering
+        labels, centroids = self.kmeans_clustering(lab_features, n_clusters, max_iters=100)
 
         # Map labels back to pixels
         pixel_labels = np.zeros(segments.shape, dtype=np.int32)
@@ -102,9 +98,56 @@ class EnhancedImageClusterer:
             pixel_labels[segments == i] = label
 
         # Calculate silhouette score
-        silhouette_avg = silhouette_score(lab_features, labels)
+        silhouette_avg = self.silhouette_score(lab_features, labels)
 
         return pixel_labels, silhouette_avg
+
+    @staticmethod
+    def kmeans_clustering(data, n_clusters, max_iters=100):
+        # Initialize centroids randomly
+        centroids = data[np.random.choice(data.shape[0], n_clusters, replace=False)]
+        
+        for _ in range(max_iters):
+            # Assign points to nearest centroid
+            distances = np.sqrt(((data[:, np.newaxis] - centroids) ** 2).sum(axis=2))
+            labels = np.argmin(distances, axis=1)
+            
+            # Update centroids
+            new_centroids = np.array([data[labels == k].mean(axis=0) for k in range(n_clusters)])
+            
+            # Check for convergence
+            if np.all(centroids == new_centroids):
+                break
+            
+            centroids = new_centroids
+        
+        return labels, centroids
+
+    @staticmethod
+    def silhouette_score(X, labels):
+        def euclidean_distance(x1, x2):
+            return np.sqrt(np.sum((x1 - x2) ** 2))
+
+        n_samples = len(X)
+        n_clusters = len(np.unique(labels))
+        
+        # Calculate average distance within clusters
+        a = np.zeros(n_samples)
+        for i in range(n_samples):
+            cluster = labels[i]
+            cluster_points = X[labels == cluster]
+            a[i] = np.mean([euclidean_distance(X[i], point) for point in cluster_points if not np.array_equal(X[i], point)])
+        
+        # Calculate minimum average distance to other clusters
+        b = np.zeros(n_samples)
+        for i in range(n_samples):
+            cluster = labels[i]
+            other_clusters = [c for c in range(n_clusters) if c != cluster]
+            b[i] = np.min([np.mean([euclidean_distance(X[i], point) for point in X[labels == c]]) for c in other_clusters])
+        
+        # Calculate silhouette score
+        s = (b - a) / np.maximum(a, b)
+        return np.mean(s)
 
 def create_visualization(image, labels, n_clusters, silhouette_avg):
     # Create a color map
@@ -145,22 +188,22 @@ def create_visualization(image, labels, n_clusters, silhouette_avg):
 def main():
     st.set_page_config(page_title="Enhanced Aerial Image Clustering", layout="wide")
 
-    st.title("Enhanced Aerial Image Clustering")
+    st.sidebar.title("Enhanced Aerial Image Clustering")
 
     # Use tabs for better organization
-    tab1, tab2 = st.tabs(["Model Training", "Image Clustering"])
+    tab = st.sidebar.radio("Choose a task", ["Model Training", "Image Clustering"])
 
-    with tab1:
+    if tab == "Model Training":
         st.header("Model Training")
         
-        model_option = st.radio(
+        model_option = st.sidebar.radio(
             "Choose Model Source",
             ["Train New Model", "Load Existing Model"],
             help="Select whether to train a new model or load a pre-trained one"
         )
         
         if model_option == "Train New Model":
-            training_folder = st.text_input(
+            training_folder = st.sidebar.text_input(
                 "Training Images Folder Path",
                 value="public/training_data",
                 help="Path to folder containing training images"
@@ -172,7 +215,7 @@ def main():
                 st.success(f"Found {len(image_files)} training images")
                 
                 if len(image_files) >= 5:
-                    if st.button("Train Model", key="train_model"):
+                    if st.sidebar.button("Train Model", key="train_model"):
                         progress_bar = st.progress(0)
                         status_text = st.empty()
                         clusterer = EnhancedImageClusterer()
@@ -193,10 +236,10 @@ def main():
             else:
                 st.error("No pre-trained model found")
 
-    with tab2:
+    elif tab == "Image Clustering":
         st.header("Image Clustering")
         
-        n_clusters = st.slider(
+        n_clusters = st.sidebar.slider(
             "Number of Clusters",
             min_value=2,
             max_value=10,
@@ -204,7 +247,7 @@ def main():
             help="Choose the number of regions to identify"
         )
 
-        uploaded_file = st.file_uploader("Upload an aerial image for clustering", type=['png', 'jpg', 'jpeg'])
+        uploaded_file = st.sidebar.file_uploader("Upload an aerial image for clustering", type=['png', 'jpg', 'jpeg'])
 
         if uploaded_file is not None:
             image = Image.open(uploaded_file)
@@ -212,7 +255,7 @@ def main():
 
             st.image(image, caption="Uploaded Image", use_column_width=True)
 
-            if st.button("Perform Clustering", key="perform_clustering"):
+            if st.sidebar.button("Perform Clustering", key="perform_clustering"):
                 progress_bar = st.progress(0)
                 status_text = st.empty()
 
@@ -236,7 +279,7 @@ def main():
 
                 buf = io.BytesIO()
                 fig.savefig(buf, format='png', bbox_inches='tight', dpi=300)
-                st.download_button(
+                st.sidebar.download_button(
                     label="Download Clustered Image",
                     data=buf.getvalue(),
                     file_name="clustered_image.png",
