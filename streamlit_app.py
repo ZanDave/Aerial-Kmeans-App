@@ -186,9 +186,9 @@ def create_visualization(image, labels, n_clusters, silhouette_avg):
     return fig
 
 def main():
-    st.set_page_config(page_title="Aerial Segmentation Image Clustering", layout="wide")
+    st.set_page_config(page_title="Aerial Image Segmentation Clustering", layout="wide")
 
-    st.sidebar.title("Aerial Segmentation Image Clustering")
+    st.sidebar.title("Aerial Image Segmentation Clustering")
 
     # Use tabs for better organization
     tab = st.sidebar.radio("Choose a task", ["Model Training", "Image Clustering"])
@@ -260,7 +260,7 @@ def main():
             help="Choose the number of regions to identify"
         )
 
-        uploaded_file = st.sidebar.file_uploader("Upload an aerial image for clustering", type=['png', 'jpg', 'jpeg'])
+        uploaded_file = st.sidebar.file_uploader("Upload an aerial image for clustering (beach pic recommended)", type=['png', 'jpg', 'jpeg'])
 
         if uploaded_file is not None:
             image = Image.open(uploaded_file)
