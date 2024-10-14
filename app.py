@@ -212,16 +212,29 @@ def main():
             if os.path.exists(training_folder):
                 image_files = list(Path(training_folder).glob("*.jpg")) + \
                               list(Path(training_folder).glob("*.png"))
-                st.success(f"Found {len(image_files)} training images")
+                total_images = len(image_files)
+                st.success(f"Found {total_images} training images")
                 
-                if len(image_files) >= 5:
+                # New: Add input for number of images to train on
+                num_train_images = st.sidebar.number_input(
+                    "Number of images to use for training",
+                    min_value=5,
+                    max_value=total_images,
+                    value=min(total_images, 20),
+                    step=1,
+                    help="Choose how many images to use for training. Minimum is 5."
+                )
+                
+                if total_images >= 5:
                     if st.sidebar.button("Train Model", key="train_model"):
                         progress_bar = st.progress(0)
                         status_text = st.empty()
                         clusterer = EnhancedImageClusterer()
                         try:
-                            clusterer.train_model(image_files, progress_bar.progress)
-                            status_text.success("Model trained successfully!")
+                            # Use only the specified number of images
+                            selected_images = random.sample(image_files, num_train_images)
+                            clusterer.train_model(selected_images, progress_bar.progress)
+                            status_text.success(f"Model trained successfully on {num_train_images} images!")
                         except Exception as e:
                             status_text.error(f"Error during model training: {str(e)}")
                 else:
