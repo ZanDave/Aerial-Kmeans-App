@@ -186,9 +186,9 @@ def create_visualization(image, labels, n_clusters, silhouette_avg):
     return fig
 
 def main():
-    st.set_page_config(page_title="Enhanced Aerial Image Clustering", layout="wide")
+    st.set_page_config(page_title="Aerial Segmentation Image Clustering", layout="wide")
 
-    st.sidebar.title("Enhanced Aerial Image Clustering")
+    st.sidebar.title("Aerial Segmentation Image Clustering")
 
     # Use tabs for better organization
     tab = st.sidebar.radio("Choose a task", ["Model Training", "Image Clustering"])
