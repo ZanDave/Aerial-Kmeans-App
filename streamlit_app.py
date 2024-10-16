@@ -19,6 +19,10 @@ class EnhancedImageClusterer:
 
     @staticmethod
     def preprocess_image(image, max_size=800):
+        # Metode ini melakukan pra-pemrosesan gambar:
+        # - Mengkonversi gambar ke format RGB jika perlu
+        # - Mengubah ukuran gambar jika melebihi ukuran maksimum
+        # - Mengembalikan gambar dalam bentuk array NumPy
         if isinstance(image, np.ndarray):
             image = Image.fromarray(image)
 
@@ -33,11 +37,14 @@ class EnhancedImageClusterer:
         return np.array(image)
 
     def extract_features(self, image):
+        # Mengekstrak fitur warna dari gambar menggunakan ruang warna LAB
         lab_image = rgb2lab(image)
         features = lab_image.reshape(-1, 3)
         return features
 
     def train_model(self, image_paths, progress_callback):
+        # Melatih model dengan mengekstrak fitur dari beberapa gambar
+        # dan menerapkan algoritma K-means
         features_list = []
         total_images = len(image_paths)
 
@@ -58,13 +65,14 @@ class EnhancedImageClusterer:
 
         all_features = np.vstack(features_list)
         
-        # Implement K-means manually
+        # Implementasi K-means secara manual
         self.kmeans = self.kmeans_clustering(all_features, n_clusters=5, max_iters=100)
 
         with open(self.model_path, 'wb') as f:
             pickle.dump(self.kmeans, f)
 
     def load_model(self):
+        # Memuat model yang telah dilatih sebelumnya
         if os.path.exists(self.model_path):
             with open(self.model_path, 'rb') as f:
                 self.kmeans = pickle.load(f)
@@ -72,10 +80,10 @@ class EnhancedImageClusterer:
         return False
 
     def cluster_image(self, image, n_clusters, progress_callback):
-        # Felzenszwalb segmentation
+        # Melakukan segmentasi gambar menggunakan algoritma Felzenszwalb
         segments = felzenszwalb(image, scale=100, sigma=0.5, min_size=50)
 
-        # Extract features for each segment
+        # Ekstraksi fitur untuk setiap segmen
         features = []
         for i in range(np.max(segments) + 1):
             mask = segments == i
@@ -86,25 +94,29 @@ class EnhancedImageClusterer:
 
         features = np.array(features)
 
-        # Convert to LAB color space
+        # Konversi ke ruang warna LAB
         lab_features = rgb2lab(features.reshape(1, -1, 3)).reshape(-1, 3)
 
-        # Perform K-means clustering
+        # Melakukan clustering K-means
         labels, centroids = self.kmeans_clustering(lab_features, n_clusters, max_iters=100)
 
-        # Map labels back to pixels
+        # Memetakan label kembali ke piksel
         pixel_labels = np.zeros(segments.shape, dtype=np.int32)
         for i, label in enumerate(labels):
             pixel_labels[segments == i] = label
 
-        # Calculate silhouette score
+        # Menghitung skor silhouette
         silhouette_avg = self.silhouette_score(lab_features, labels)
 
         return pixel_labels, silhouette_avg
 
     @staticmethod
     def kmeans_clustering(data, n_clusters, max_iters=100):
-        # Initialize centroids randomly
+        # Implementasi algoritma K-means:
+        # 1. Inisialisasi centroid secara acak
+        # 2. Assign setiap titik ke centroid terdekat
+        # 3. Update posisi centroid
+        # 4. Ulangi langkah 2-3 hingga konvergen atau mencapai iterasi maksimum
         centroids = data[np.random.choice(data.shape[0], n_clusters, replace=False)]
         
         for _ in range(max_iters):
@@ -125,37 +137,38 @@ class EnhancedImageClusterer:
 
     @staticmethod
     def silhouette_score(X, labels):
+        # Menghitung skor silhouette untuk evaluasi kualitas clustering
         def euclidean_distance(x1, x2):
             return np.sqrt(np.sum((x1 - x2) ** 2))
 
         n_samples = len(X)
         n_clusters = len(np.unique(labels))
         
-        # Calculate average distance within clusters
+        # Hitung rata-rata jarak dalam cluster
         a = np.zeros(n_samples)
         for i in range(n_samples):
             cluster = labels[i]
             cluster_points = X[labels == cluster]
             a[i] = np.mean([euclidean_distance(X[i], point) for point in cluster_points if not np.array_equal(X[i], point)])
         
-        # Calculate minimum average distance to other clusters
+        # Hitung rata-rata jarak minimum ke cluster lain
         b = np.zeros(n_samples)
         for i in range(n_samples):
             cluster = labels[i]
             other_clusters = [c for c in range(n_clusters) if c != cluster]
             b[i] = np.min([np.mean([euclidean_distance(X[i], point) for point in X[labels == c]]) for c in other_clusters])
         
-        # Calculate silhouette score
+        # Hitung skor silhouette
         s = (b - a) / np.maximum(a, b)
         return np.mean(s)
 
 def create_visualization(image, labels, n_clusters, silhouette_avg):
-    # Create a color map
+    # Fungsi ini membuat visualisasi hasil clustering
+    # dengan menampilkan gambar asli dan gambar yang telah di-cluster
     color_map = plt.get_cmap('tab10')
     rgba_colors = color_map(np.linspace(0, 1, n_clusters))
     rgb_colors = rgba_colors[:, :3]
 
-    # Create clustered image
     clustered_img = np.zeros_like(image)
     for i in range(n_clusters):
         mask = labels == i
@@ -171,7 +184,7 @@ def create_visualization(image, labels, n_clusters, silhouette_avg):
     ax2.set_title(f"Clustered Image (Silhouette Score: {silhouette_avg:.2f})")
     ax2.axis('off')
 
-    # Add cluster numbers
+    # Tambahkan nomor cluster
     for i in range(n_clusters):
         mask = labels == i
         if mask.sum() > 0:
@@ -186,11 +199,12 @@ def create_visualization(image, labels, n_clusters, silhouette_avg):
     return fig
 
 def main():
+    # Fungsi utama yang mengatur alur kerja aplikasi Streamlit
+    # Termasuk pelatihan model, clustering gambar, dan visualisasi hasil
     st.set_page_config(page_title="Aerial Image Segmentation Clustering", layout="wide")
 
     st.sidebar.title("Aerial Image Segmentation Clustering")
 
-    # Use tabs for better organization
     tab = st.sidebar.radio("Choose a task", ["Model Training", "Image Clustering"])
 
     if tab == "Model Training":
@@ -215,7 +229,6 @@ def main():
                 total_images = len(image_files)
                 st.success(f"Found {total_images} training images")
                 
-                # New: Add input for number of images to train on
                 num_train_images = st.sidebar.number_input(
                     "Number of images to use for training",
                     min_value=5,
@@ -231,7 +244,6 @@ def main():
                         status_text = st.empty()
                         clusterer = EnhancedImageClusterer()
                         try:
-                            # Use only the specified number of images
                             selected_images = random.sample(image_files, num_train_images)
                             clusterer.train_model(selected_images, progress_bar.progress)
                             status_text.success(f"Model trained successfully on {num_train_images} images!")
